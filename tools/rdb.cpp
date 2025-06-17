@@ -82,7 +82,7 @@ void handle_command(std::unique_ptr<rdb::process>& proc, std::string_view line) 
 void main_loop(std::unique_ptr<rdb::process>&proc) {
 
   char *line = nullptr;
-  while ((line = readline("rdb> ")) != nullptr) {
+  while ((line = readline("(rdb) ")) != nullptr) {
     std::string line_str;
 
     if (line == std::string_view("")) {
