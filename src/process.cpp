@@ -20,11 +20,9 @@ std::unique_ptr<rdb::process> rdb::process::launch(std::filesystem::path path) {
     // execute debugee
     if (ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) < 0) {
       error::send_errno("Traceme failed");
-      return nullptr;
     }
     if (execlp(path.c_str(), path.c_str(), nullptr) < 0) {
       error::send_errno("Execlp failed");
-      return nullptr;
     }
   }
   std::unique_ptr<rdb::process> proc(
