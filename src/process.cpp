@@ -1,3 +1,4 @@
+#include <librdb/register_info.hpp>
 #include <csignal>
 #include <cstdlib>
 #include <librdb/error.hpp>
@@ -84,12 +85,16 @@ void rdb::process::resume() {
 rdb::stop_reason rdb::process::wait_on_signal() {
   int wait_status;
   int options = 0;
-
   if (waitpid(pid_, &wait_status, options) < 0) {
     error::send_errno("Waitpid failed");
   }
   stop_reason reason(wait_status);
   state_ = reason.reason;
+
+  if (is_attached_ && state_ == process_state::stopped) {
+    read_all_registers();
+  }
+
   return reason;
 }
 
@@ -103,6 +108,43 @@ rdb::stop_reason::stop_reason(int wait_status) {
   } else if (WIFSTOPPED(wait_status)) {
     reason = process_state::stopped;
     info = WSTOPSIG(wait_status);
+  }
+}
+
+void rdb::process::read_all_registers() {
+  if (ptrace(PTRACE_GETREGS, pid_, &get_registers().data_.regs) < 0) {
+    error::send_errno("Could not read GPR registers");
+  }
+  if (ptrace(PTRACE_GETFPREGS, pid_, &get_registers().data_.i387) < 0) {
+    error::send_errno("Could not read FPR registers");
+  }
+  for (int i = 0; i < 8; i++) {
+    auto id = static_cast<int>(register_id::dr0) + i;
+    auto info = register_info_by_id(static_cast<register_id>(id));
+
+    errno = 0;
+    std::uint64_t data = ptrace(PTRACE_PEEKUSER, pid_, info.offset, nullptr);
+    if (errno != 0)
+      error::send_errno("Could not read debug registers");
+    get_registers().data_.u_debugreg[i] = data;
+  }
+}
+
+void rdb::process::write_fprs(const user_fpregs_struct &fprs) {
+  if (ptrace(PTRACE_SETFPREGS, pid_, nullptr, &fprs) < 0) {
+    error::send_errno("Could not write floating pointer registers");
+  }
+}
+
+void rdb::process::write_gprs(const user_regs_struct &gprs) {
+  if (ptrace(PTRACE_SETREGS, pid_, nullptr, &gprs) < 0) {
+    error::send_errno("Could not write general purpose registers");
+  }
+}
+
+void rdb::process::write_user_area(std::size_t offset, std::uint64_t data) {
+  if (ptrace(PTRACE_POKEUSER, pid_, offset, data) < 0) {
+    error::send_errno("Could not write to user area");
   }
 }
 
