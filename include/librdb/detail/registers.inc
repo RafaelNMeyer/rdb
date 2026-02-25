@@ -77,7 +77,7 @@ DEFINE_GPR_8L(r10b, r10), DEFINE_GPR_8L(r11b, r11),
 DEFINE_GPR_8L(r12b, r12), DEFINE_GPR_8L(r13b, r13),
 DEFINE_GPR_8L(r14b, r14), DEFINE_GPR_8L(r15b, r15),
 
-#define FPR_OFFSET(reg) offsetof(user, i387) + offsetof(user_fpregs_struct, reg)
+#define FPR_OFFSET(reg) (offsetof(user, i387) + offsetof(user_fpregs_struct, reg))
 
 #define FPR_SIZE(reg) (sizeof(user_fpregs_struct::reg))
 
@@ -108,7 +108,7 @@ DEFINE_FPR(fop, -1, fop),
 DEFINE_FPR(frip, -1, rip),
 DEFINE_FPR(frdp, -1, rdp),
 DEFINE_FPR(mxcsr, 64, mxcsr),
-DEFINE_FPR(mxcsrmask, 64, mxcr_mask),
+DEFINE_FPR(mxcsrmask, -1, mxcr_mask),
 
 DEFINE_FP_ST(0),DEFINE_FP_ST(1),DEFINE_FP_ST(2),
 DEFINE_FP_ST(3),DEFINE_FP_ST(4),DEFINE_FP_ST(5),

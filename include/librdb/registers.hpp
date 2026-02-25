@@ -25,7 +25,7 @@ public:
   value read(const register_info &info) const;
   void write(const register_info &info, value val);
 
-  template <class T> T read_by_id_as(register_id id) {
+  template <class T> T read_by_id_as(register_id id) const {
     return std::get<T>(read(register_info_by_id(id)));
   };
 

@@ -1,9 +1,10 @@
-#include <librdb/register_info.hpp>
 #include <csignal>
 #include <cstdlib>
+#include <iostream>
 #include <librdb/error.hpp>
 #include <librdb/pipe.hpp>
 #include <librdb/process.hpp>
+#include <librdb/register_info.hpp>
 #include <memory>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
@@ -17,8 +18,9 @@ void exit_with_perror(rdb::pipe &channel, std::string const &prefix) {
 }
 } // namespace
 
-std::unique_ptr<rdb::process> rdb::process::launch(std::filesystem::path path,
-                                                   bool debug) {
+std::unique_ptr<rdb::process>
+rdb::process::launch(std::filesystem::path path, bool debug,
+                     std::optional<int> stdout_replacement) {
 
   pipe channel(/*close_on_exec=*/true);
 
@@ -32,6 +34,13 @@ std::unique_ptr<rdb::process> rdb::process::launch(std::filesystem::path path,
     // in child process
     // execute debugee
     channel.close_read();
+
+    if (stdout_replacement) {
+      if (dup2(*stdout_replacement, STDOUT_FILENO) < 0) {
+        exit_with_perror(channel, "Stdout replacement failed");
+      }
+    }
+
     if (debug and ptrace(PTRACE_TRACEME, 0, nullptr, nullptr) < 0) {
       exit_with_perror(channel, "Traceme failed");
     }
@@ -112,10 +121,11 @@ rdb::stop_reason::stop_reason(int wait_status) {
 }
 
 void rdb::process::read_all_registers() {
-  if (ptrace(PTRACE_GETREGS, pid_, &get_registers().data_.regs) < 0) {
+  if (ptrace(PTRACE_GETREGS, pid_, nullptr, &get_registers().data_.regs) < 0) {
     error::send_errno("Could not read GPR registers");
   }
-  if (ptrace(PTRACE_GETFPREGS, pid_, &get_registers().data_.i387) < 0) {
+  if (ptrace(PTRACE_GETFPREGS, pid_, nullptr, &get_registers().data_.i387) <
+      0) {
     error::send_errno("Could not read FPR registers");
   }
   for (int i = 0; i < 8; i++) {
@@ -149,7 +159,7 @@ void rdb::process::write_user_area(std::size_t offset, std::uint64_t data) {
 }
 
 rdb::process::~process() {
-  if (pid_ > 0) {
+  if (pid_ != 0) {
     int status;
     if (is_attached_) {
       if (state_ == process_state::running) {
@@ -158,11 +168,11 @@ rdb::process::~process() {
       }
       ptrace(PTRACE_DETACH, pid_, nullptr, nullptr);
       kill(pid_, SIGCONT);
+    }
 
-      if (terminate_on_end_) {
-        kill(pid_, SIGINT);
-        waitpid(pid_, &status, 0);
-      }
+    if (terminate_on_end_) {
+      kill(pid_, SIGINT);
+      waitpid(pid_, &status, 0);
     }
   }
 }

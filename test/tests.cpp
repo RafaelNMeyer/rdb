@@ -1,4 +1,8 @@
+#include "librdb/bit.hpp"
 #include "librdb/error.hpp"
+#include "librdb/pipe.hpp"
+#include "librdb/register_info.hpp"
+#include "librdb/types.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <cerrno>
 #include <fstream>
@@ -27,7 +31,7 @@ char get_process_status(pid_t pid) {
 } // namespace
 
 TEST_CASE("process::launch success", "[process]") {
-  auto proc = process::launch("yes");
+  auto proc = process::launch("yes", false);
   REQUIRE(process_exists(proc->pid()));
 }
 
@@ -70,4 +74,74 @@ TEST_CASE("process::resume already terminated", "[process]") {
     proc->wait_on_signal();
     REQUIRE_THROWS_AS(proc->resume(), error);
   }
+}
+
+TEST_CASE("Write register works", "[register]") {
+  bool close_on_exec = false;
+  rdb::pipe channel(close_on_exec);
+
+  auto proc =
+      rdb::process::launch("targets/reg_write", true, channel.get_write());
+
+  channel.close_write();
+
+  proc->resume();
+  proc->wait_on_signal();
+
+  auto &regs = proc->get_registers();
+  regs.write_by_id(register_id::rsi, 0xcafecafe);
+  proc->resume();
+  proc->wait_on_signal();
+  auto output = channel.read();
+  REQUIRE(to_string_view(output) == "0xcafecafe");
+
+  regs.write_by_id(register_id::mm0, 0x12345678);
+  proc->resume();
+  proc->wait_on_signal();
+  output = channel.read();
+  REQUIRE(to_string_view(output) == "0x12345678");
+
+  regs.write_by_id(register_id::xmm0, 42.42);
+  proc->resume();
+  proc->wait_on_signal();
+  output = channel.read();
+  REQUIRE(to_string_view(output) == "42.42");
+
+  regs.write_by_id(register_id::st0, 42.24l);
+
+  // need to search more why set 111 to this register
+  regs.write_by_id(register_id::fsw, std::uint16_t{0b0011100000000000});
+  // tag registers, (0b11=empty, 0b00 valid)
+  // since it's st0, we set 0b00 to firsts bits
+  regs.write_by_id(register_id::ftw, std::uint16_t{0b0011111111111111});
+  proc->resume();
+  proc->wait_on_signal();
+  output = channel.read();
+  REQUIRE(to_string_view(output) == "42.24");
+}
+
+TEST_CASE("Read register works", "[register]") {
+  auto proc = rdb::process::launch("targets/reg_read");
+  auto &regs = proc->get_registers();
+
+  proc->resume();
+  proc->wait_on_signal();
+  REQUIRE(regs.read_by_id_as<std::uint64_t>(register_id::r13) == 0xcafecafe);
+
+  proc->resume();
+  proc->wait_on_signal();
+  REQUIRE(regs.read_by_id_as<std::uint8_t>(register_id::r13b) == 42);
+
+  proc->resume();
+  proc->wait_on_signal();
+  REQUIRE(regs.read_by_id_as<byte64>(register_id::mm0) ==
+          to_byte64(0xba5eba11ull));
+
+  proc->resume();
+  proc->wait_on_signal();
+  REQUIRE(regs.read_by_id_as<byte128>(register_id::xmm0) == to_byte128(64.125));
+
+  proc->resume();
+  proc->wait_on_signal();
+  REQUIRE(regs.read_by_id_as<long double>(register_id::st0) == 64.125L);
 }
