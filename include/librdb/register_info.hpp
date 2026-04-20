@@ -55,7 +55,7 @@ inline const register_info &register_info_by_name(std::string_view name) {
   return register_info_by([name](auto &i) { return i.name == name; });
 }
 
-inline const register_info &register_info_by_name(std::int32_t dwarf_id) {
+inline const register_info &register_info_by_dwarf_id(std::int32_t dwarf_id) {
   return register_info_by(
       [dwarf_id](auto &i) { return i.dwarf_id == dwarf_id; });
 }
