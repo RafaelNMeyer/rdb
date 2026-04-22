@@ -76,18 +76,20 @@ bool is_prefix(std::string_view str, std::string_view of) {
 void print_help(const std::vector<std::string>& args) {
 	if (args.size() == 1) {
 		std::cerr << R"(
-			Available commands:
-				continue	- Resume the process
-				register	- Commands for operating on registers
-		)";
+Available commands:
+  continue	- Resume the process
+  register	- Commands for operating on registers
+
+)";
 	} else if (is_prefix(args[1], "register")) {
 		std::cerr << R"(
-			Available commands:
-				read	- Resume the process
-				read <register>
-				read all
-				write <register> <value>
-		)";
+Available commands:
+  read	- Same as 'read all'
+  read <register>
+  read all
+  write <register> <value>
+
+)";
 	} else {
 		std::cerr << "No help available on that\n";
 	}
