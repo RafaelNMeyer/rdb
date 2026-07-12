@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <variant>
 #include <vector>
+#include <span>
 
 namespace {
 
@@ -102,7 +103,7 @@ void handle_register_read(rdb::process& proc, std::vector<std::string>& args) {
 		} else if constexpr (std::is_integral_v<decltype(t)>) {
 			return fmt::format("{:#0{}x}", t, sizeof(t) * 2 + 2);
 		} else {
-			return fmt::format("[{:#04x}]", fmt::join(t, ","));
+			return fmt::format("[{:#04x}]", fmt::join(std::span(reinterpret_cast<const unsigned char*>(t.data()), t.size()), ","));
 		}
 	};
 
