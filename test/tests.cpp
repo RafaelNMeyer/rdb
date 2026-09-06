@@ -6,6 +6,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <cerrno>
 #include <fstream>
+#include <iostream>
 #include <librdb/process.hpp>
 #include <signal.h>
 #include <string>

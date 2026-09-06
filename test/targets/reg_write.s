@@ -69,6 +69,8 @@ main:
 	call fflush@plt
 	addq $16, %rsp
 
+	trap
+
 	popq %rbp
 	movq $0, %rax
 	ret
