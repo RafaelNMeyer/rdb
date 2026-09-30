@@ -9,6 +9,7 @@
 #include <librdb/parser.hpp>
 #include <librdb/process.hpp>
 #include <librdb/register_info.hpp>
+#include <span>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -18,13 +19,10 @@
 #include <unistd.h>
 #include <variant>
 #include <vector>
-#include <span>
 
 namespace {
 
 void print_stop_reason(const rdb::process &proc, rdb::stop_reason reason) {
-  std::cout << "Process " << proc.pid() << ' ';
-
   std::string message;
   switch (reason.reason) {
   case rdb::process_state::exited:
@@ -36,7 +34,8 @@ void print_stop_reason(const rdb::process &proc, rdb::stop_reason reason) {
         fmt::format("terminated with signal {}", sigabbrev_np(reason.info));
     break;
   case rdb::process_state::stopped:
-    message = fmt::format("stopped with signal {}", sigabbrev_np(reason.info));
+    message = fmt::format("stopped with signal {} at {:#x}",
+                          sigabbrev_np(reason.info), proc.get_pc().addr());
     break;
   }
   fmt::print("Process {} {}\n", proc.pid(), message);

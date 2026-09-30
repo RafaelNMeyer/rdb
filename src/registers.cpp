@@ -79,7 +79,7 @@ void rdb::registers::write(const register_info &info, value val) {
       },
       val);
 
-  // needed to align 8 bytes for registers ah,bh,ch,dh
+  // needed to align 8 bytes for registers ah,bh,ch,dh (high 8 regs from r<a,b,c,d>x)
   auto aligned_offset = info.offset & ~0b111;
   // this write to user area!
   // and can throw an error since we cannot write to i837 registers
